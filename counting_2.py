@@ -2,6 +2,8 @@ import os
 import cv2
 import time
 import numpy as np
+import mysql.connector
+from datetime import datetime
 from threading import Thread, Lock
 from ultralytics import YOLO
 from pynput import keyboard
@@ -11,6 +13,41 @@ os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
 print("Loading YOLO model...")
 model = YOLO("yolov8n.pt")
 print("Model loaded")
+
+# ================= DATABASE =================
+
+db = mysql.connector.connect(
+    host="localhost",
+    user="root",
+    password="",
+    database="traffic_monitoring"
+)
+
+cursor = db.cursor()
+
+def save_to_db(object_name, direction, device):
+
+    query = """
+    INSERT INTO object_real_times
+    (object,count,start_date,end_date,created_at,email,direction,device_id)
+    VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+    """
+
+    now = datetime.now()
+
+    values = (
+        object_name,
+        1,
+        now,
+        now,
+        now,
+        "ai@traffic.com",
+        direction,
+        device
+    )
+
+    cursor.execute(query, values)
+    db.commit()
 
 # ================= AREA MASUK =================
 
@@ -204,6 +241,8 @@ while not stop_program:
                     vehicle_masuk[name][label] += 1
                     counted_masuk[name].add(track_id)
 
+                    save_to_db(label,1,name)
+
             # ================= AREA KELUAR =================
 
             if point_in_polygon(point, area_keluar[name]):
@@ -212,6 +251,8 @@ while not stop_program:
 
                     vehicle_keluar[name][label] += 1
                     counted_keluar[name].add(track_id)
+
+                    save_to_db(label,2,name)
 
     # ================= PRINT REALTIME =================
 
